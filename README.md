@@ -36,7 +36,7 @@ Indian-traditions-main/
 
 🚀 How to Run the Project
 1. Clone the repository
-git clone https://github.com/Udaysri4257/BharathVivvid/Indian-traditions.git
+git clone (https://github.com/Udaysri4257/BharathVivvid/tree/main)
 cd Indian-traditions-main
 
 2. Install Django
