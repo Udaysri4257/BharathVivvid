@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% if is_personal_feed %}
+    <div class="text-center bg-white p-4 rounded-lg shadow-md mb-8">
+        <p>You're viewing your personalized feed. To see more, <a href="{% url 'explore' %}" class="text-secondary font-bold">explore all posts</a> and follow users or <a href="{% url 'edit_profile' %}" class="text-secondary font-bold">select your favorite categories</a>.</p>
+    </div>
+{% else %}
+    <h2 class="text-3xl font-bold text-primary mb-6 telugu">ఇటీవలి పోస్ట్‌లు (Recent Posts)</h2>
+{% endif %}
+
+<div class="space-y-8">
+    {% for item in contributions %}
+    <div class="bg-white p-6 rounded-2xl shadow-lg">
+        <!-- Post Header -->
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <p class="text-xl font-bold">
+                    <span class="text-secondary">{{ item.get_category_display }}</span> from <span class="text-primary">{{ item.state.name }}</span>
+                </p>
+                <p class="text-sm text-gray-500">by <a href="{% url 'public_profile' item.author.username %}" class="font-bold text-primary hover:underline">{{ item.author.username }}</a> on {{ item.submitted_at|date:"F j, Y" }}</p>
+            </div>
+            <!-- Follow Button -->
+            {% if user.is_authenticated and item.author != user %}
+            <a href="{% url 'follow_user' item.author.id %}" class="btn-primary text-sm">
+                {% if item.author.userprofile in user.userprofile.follows.all %}
+                    Unfollow
+                {% else %}
+                    Follow
+                {% endif %}
+            </a>
+            {% endif %}
+        </div>
+        
+        <!-- Post Content -->
+        {% if item.text_content %}<p class="mb-4">{{ item.text_content }}</p>{% endif %}
+        <div class="flex flex-wrap gap-4">
+            {% if item.image_content %}<img src="{{ item.image_content.url }}" class="max-w-sm rounded-lg">{% endif %}
+            {% if item.video_content %}<video controls src="{{ item.video_content.url }}" class="max-w-sm rounded-lg"></video>{% endif %}
+            {% if item.audio_content %}<audio controls src="{{ item.audio_content.url }}"></audio>{% endif %}
+        </div>
+
+        <!-- Likes Section -->
+        <div class="mt-4 flex items-center space-x-4">
+            <button onclick="likePost({{ item.id }})" class="like-btn-{{ item.id }} text-2xl">
+                {% if user in item.likes.all %}❤️{% else %}🤍{% endif %}
+            </button>
+            <span id="likes-count-{{ item.id }}" class="font-bold">{{ item.total_likes }} likes</span>
+        </div>
+
+        <!-- Comments Section -->
+        <div class="mt-4 pt-4 border-t">
+            <h4 class="font-bold mb-2">Comments</h4>
+            <div class="space-y-2 mb-4">
+                {% for comment in item.comments.all %}
+                    <p><strong><a href="{% url 'public_profile' comment.author.username %}" class="text-primary hover:underline">{{ comment.author.username }}</a>:</strong> {{ comment.text }}</p>
+                {% empty %}
+                    <p class="text-gray-500">No comments yet.</p>
+                {% endfor %}
+            </div>
+            <form action="{% url 'add_comment' item.id %}" method="post" class="flex space-x-2">
+                {% csrf_token %}
+                <input type="text" name="comment_text" placeholder="Add a comment..." class="w-full border rounded-lg px-3 py-1">
+                <button type="submit" class="btn-primary text-sm">Post</button>
+            </form>
+        </div>
+    </div>
+    {% empty %}
+        <p class="text-center text-gray-600 py-10">Your feed is empty! Start by following some users or categories to see their posts here.</p>
+    {% endfor %}
+</div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+function likePost(contributionId) {
+    fetch(`/like/${contributionId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json'
+        },
+    })
+    .then(response => {
+        // --- THIS IS THE FIX ---
+        // First, check if the server responded successfully.
+        if (!response.ok) {
+            // If not, throw an error to be caught by the .catch() block.
+            throw new Error('Network response was not ok');
+        }
+        // If the response is ok, then we can safely try to parse it as JSON.
+        return response.json();
+    })
+    .then(data => {
+        const likesCountElem = document.getElementById(`likes-count-${contributionId}`);
+        if (likesCountElem) {
+            likesCountElem.innerText = data.likes_count + ' likes';
+        }
+        
+        const likeButton = document.querySelector(`.like-btn-${contributionId}`);
+        if (likeButton) {
+            if (data.liked) {
+                likeButton.innerHTML = '❤️';
+            } else {
+                likeButton.innerHTML = '🤍';
+            }
+        }
+    })
+    .catch(error => {
+        // This will now catch any network errors or server errors.
+        console.error('Error liking post:', error);
+        // You could also show a user-friendly error message here.
+    });
+}
+</script>
+{% endblock %}
